@@ -7,5 +7,13 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "TerraZero",
-  "license": "ISC"
+  "license": "ISC",
+  "scaffold": {
+    "files": {
+      "templates": {
+        "namespace": "templates",
+        "pattern": "**/*.vue"
+      }
+    }
+  }
 }
