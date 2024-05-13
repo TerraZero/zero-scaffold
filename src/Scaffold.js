@@ -50,6 +50,9 @@ module.exports = class Scaffold {
    * @param {string} path 
    */
   scaffold(path) {
+    path = Path.join(Path.dirname(path), 'zero.json');
+    if (!FS.existsSync(path)) return;
+
     const config = require(path);
 
     if (config.scaffold) {
@@ -68,8 +71,12 @@ module.exports = class Scaffold {
   scaffoldInline(config, scaffold) {
     if (Array.isArray(scaffold.modules)) {
       for (const module of scaffold.modules) {
-        const modPath = this.findPackage(require.resolve(module));
-        const modConfig = require(modPath);
+        const modPath = Path.dirname(this.findPackage(require.resolve(module)));
+        const modConfig = Path.join(modPath, 'zero.json');
+        if (!FS.existsSync(modConfig)) {
+          console.error(`[Scaffold-ERROR] The module "${modPath}" has no zero.json. Please delete the module from include list "modules".`);
+          continue;
+        }
         
         if (modConfig.scaffold) {
           modConfig.scaffold.path = modPath;
@@ -93,7 +100,7 @@ module.exports = class Scaffold {
 
           if (!config.main.paths[parse.type] || (!config.main.paths[parse.type].mode || config.main.paths[parse.type].mode === 'once') && FS.existsSync(Path.join(root, files.namespace ?? '', item))) continue;
 
-          const target = Path.normalize(this.fillTemplate(config.main.paths[parse.type].path, parse));
+          const target = Path.normalize(this.template(config.main.paths[parse.type].path, parse));
           const from = Path.join(files.namespace ?? '', item);
 
           this.prepareDirectory(targetRoot, Path.dirname(target));
@@ -105,11 +112,7 @@ module.exports = class Scaffold {
     }
   }
 
-  replace(string, vars) {
-    return new Function("return `" + string + "`;").call(vars);
-  }
-
-  fillTemplate(template, params) {
+  template(template, params) {
     return new Function(...Object.keys(params), `return \`${template}\``)(...Object.values(params));
   }
 
