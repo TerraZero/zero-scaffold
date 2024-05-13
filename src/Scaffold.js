@@ -91,7 +91,7 @@ module.exports = class Scaffold {
           parse.module = this.toCamelCase(modname);
           parse.type = files.type;
 
-          if (!config.main.paths[parse.type] || config.main.paths[parse.type].mode && config.main.paths[parse.type].mode !== 'replace' && FS.existsSync(Path.join(root, files.namespace ?? '', item))) continue;
+          if (!config.main.paths[parse.type] || (!config.main.paths[parse.type].mode || config.main.paths[parse.type].mode === 'once') && FS.existsSync(Path.join(root, files.namespace ?? '', item))) continue;
 
           const target = Path.normalize(this.fillTemplate(config.main.paths[parse.type].path, parse));
           const from = Path.join(files.namespace ?? '', item);
