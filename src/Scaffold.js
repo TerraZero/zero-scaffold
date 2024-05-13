@@ -1,12 +1,23 @@
 const Path = require('path');
 const FS = require('fs');
+const Glob = require('glob');
 
 /**
  * @typedef {Object} T_ScaffoldConfig
  * @property {string} path
- * @property {Object} main
- * @property {Object} scaffold
- * @property {string[]} scaffold.modules
+ * @property {T_ScaffoldPackage} main
+ */
+
+/**
+ * @typedef {Object} T_ScaffoldPackage
+ * @property {string[]} [modules]
+ * @property {Object<string, T_ScaffoldFile>} [files]
+ */
+
+/**
+ * @typedef {Object} T_ScaffoldFile
+ * @property {string} [namespace]
+ * @property {string} [pattern]
  */
 
 module.exports = class Scaffold {
@@ -37,22 +48,35 @@ module.exports = class Scaffold {
       this.scaffoldInline({
         path,
         main: config.scaffold,
-        scaffold: config.scaffold,
-      });
+      }, config.scaffold);
     }
   }
 
   /**
    * @param {T_ScaffoldConfig} config 
+   * @param {T_ScaffoldPackage} scaffold
    */
-  scaffoldInline(config) {
-    if (Array.isArray(config.scaffold.modules)) {
-      for (const module of config.scaffold.modules) {
+  scaffoldInline(config, scaffold) {
+    if (Array.isArray(scaffold.modules)) {
+      for (const module of scaffold.modules) {
         const modPath = this.findPackage(require.resolve(module));
         const modConfig = require(modPath);
-        console.log(modConfig);
+        
+        if (modConfig.scaffold) {
+          this.scaffoldInline(config, modConfig.scaffold);
+        }
       }
     }
+    if (scaffold.files) {
+      for (const type in scaffold.files) {
+        const fileDefinition = scaffold.files[type];
+        console.log(type, scaffold.files);
+      }
+    }
+  }
+
+  replace(string, vars) {
+    return new Function("return `" + string + "`;").call(vars);
   }
 
 }

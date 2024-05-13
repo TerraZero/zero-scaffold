@@ -9,11 +9,12 @@
   "author": "TerraZero",
   "license": "ISC",
   "scaffold": {
-    "files": {
-      "templates": {
+    "files": [
+      {
+        "type": "comps",
         "namespace": "templates",
         "pattern": "**/*.vue"
       }
-    }
+    ]
   }
 }
