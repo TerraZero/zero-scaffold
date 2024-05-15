@@ -28,6 +28,11 @@ const Glob = require('glob');
  * @property {string} [namespace]
  */
 
+/**
+ * @typedef {Object} T_ScaffoldAction
+ * @property {string} type
+ */
+
 module.exports = class Scaffold {
 
   /**
@@ -61,6 +66,10 @@ module.exports = class Scaffold {
         path,
         main: config.scaffold,
       }, config.scaffold);
+
+      if (config.scaffold.after) {
+        this.doActions(config.scaffold.after, path);
+      }
     }
   }
 
@@ -132,6 +141,32 @@ module.exports = class Scaffold {
       const part = parts.shift();
       root = Path.join(root, part);
       if (!FS.existsSync(root)) FS.mkdirSync(root);
+    }
+  }
+
+  /**
+   * @param {T_ScaffoldAction[]} actions 
+   * @property {string} path
+   */
+  doActions(actions, path) {
+    const root = Path.dirname(path);
+    
+    for (const action of actions) {
+      switch (action.type) {
+        case 'append':
+          const parts = [];
+
+          parts.push(FS.readFileSync(Path.join(root, action.file)));
+          const files = Glob.sync(action.pattern, {
+            cwd: root,
+          });
+          for (const file of files) {
+            parts.push(FS.readFileSync(Path.join(root, file)));
+          }
+          this.prepareDirectory(root, Path.dirname(action.result));
+          FS.writeFileSync(Path.join(root, action.result), parts.join(action.separator ?? ''));
+          break;
+      }
     }
   }
 
