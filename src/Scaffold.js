@@ -154,17 +154,24 @@ module.exports = class Scaffold {
     for (const action of actions) {
       switch (action.type) {
         case 'append':
+          console.log(`[Scaffold-after-append] ${action.result}: `);
           const parts = [];
 
-          parts.push(FS.readFileSync(Path.join(root, action.file)));
+          if (action.file) {
+            console.log(`  - base "${action.file}"`);
+            parts.push(FS.readFileSync(Path.join(root, action.file)));
+          }
           const files = Glob.sync(action.pattern, {
             cwd: root,
           });
           for (const file of files) {
+            console.log(`  - append "${file}"`);
             parts.push(FS.readFileSync(Path.join(root, file)));
           }
           this.prepareDirectory(root, Path.dirname(action.result));
           FS.writeFileSync(Path.join(root, action.result), parts.join(action.separator ?? ''));
+          console.log('  - finish');
+          console.log();
           break;
       }
     }
