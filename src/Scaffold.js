@@ -72,12 +72,13 @@ module.exports = class Scaffold {
     if (Array.isArray(scaffold.modules)) {
       for (const module of scaffold.modules) {
         const modPath = Path.dirname(this.findPackage(require.resolve(module)));
-        const modConfig = Path.join(modPath, 'zero.json');
-        if (!FS.existsSync(modConfig)) {
+        const modConfigPath = Path.join(modPath, 'zero.json');
+        if (!FS.existsSync(modConfigPath)) {
           console.error(`[Scaffold-ERROR] The module "${modPath}" has no zero.json. Please delete the module from include list "modules".`);
           continue;
         }
-        
+
+        const modConfig = require(modConfigPath);
         if (modConfig.scaffold) {
           modConfig.scaffold.path = modPath;
           this.scaffoldInline(config, modConfig.scaffold);
@@ -87,10 +88,9 @@ module.exports = class Scaffold {
     if (scaffold.files) {
       const targetRoot = Path.dirname(config.path);
       for (const files of scaffold.files) {
-        const root = Path.dirname(scaffold.path);
-        const modname = Path.basename(root);
+        const modname = Path.basename(scaffold.path);
         const list = Glob.sync(files.pattern, {
-          cwd: Path.join(root, files.namespace ?? ''),
+          cwd: Path.join(scaffold.path, files.namespace ?? ''),
         });
         for (const item of list) {
           const parse = Path.parse(item);
@@ -98,14 +98,17 @@ module.exports = class Scaffold {
           parse.module = this.toCamelCase(modname);
           parse.type = files.type;
 
-          if (!config.main.paths[parse.type] || (!config.main.paths[parse.type].mode || config.main.paths[parse.type].mode === 'once') && FS.existsSync(Path.join(root, files.namespace ?? '', item))) continue;
+          if (!config.main.paths[parse.type]) continue;
 
           const target = Path.normalize(this.template(config.main.paths[parse.type].path, parse));
+
+          if ((!config.main.paths[parse.type].mode || config.main.paths[parse.type].mode === 'once') && FS.existsSync(Path.join(targetRoot, target))) continue;
+
           const from = Path.join(files.namespace ?? '', item);
 
           this.prepareDirectory(targetRoot, Path.dirname(target));
           process.stdout.write(`[Scaffold-${parse.module}-${parse.type}] ${from} => ${target}: `);
-          FS.copyFileSync(Path.join(root, from), Path.join(targetRoot, target));
+          FS.copyFileSync(Path.join(scaffold.path, from), Path.join(targetRoot, target));
           console.log('OK');
         }
       }
