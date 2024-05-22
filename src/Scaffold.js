@@ -71,7 +71,7 @@ module.exports = class Scaffold {
    * @returns {?T_ZeroConfig}
    */
   getZeroJson(dir) {
-    path = Path.join(this.findPackageRoot(dir), 'zero.json');
+    const path = Path.join(this.findPackageRoot(dir), 'zero.json');
     if (!FS.existsSync(path)) return null;
     return require(path);
   }
