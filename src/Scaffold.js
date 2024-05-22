@@ -10,12 +10,13 @@ const Glob = require('glob');
 
 /**
  * @typedef {Object} T_ScaffoldConfig
- * @property {string} path
+ * @property {string} root
  * @property {T_ScaffoldPackage} main
  */
 
 /**
  * @typedef {Object} T_ScaffoldPackage
+ * @property {string} [root]
  * @property {string[]} [modules]
  * @property {Object<string, T_ScaffoldTarget>} [paths]
  * @property {T_ScaffoldSource[]} [files]
@@ -45,16 +46,24 @@ module.exports = class Scaffold {
    * @param {string} dir 
    * @returns {string}
    */
-  findPackage(dir) {
+  findPackageRoot(dir) {
     let last = null;
     do {
       last = dir;
-      dir = Path.join(dir, '..');
-      if (FS.existsSync(Path.join(dir, 'package.json'))) {
-        return Path.join(dir, 'package.json');
+      if (FS.existsSync(Path.join(dir, 'package.json')) || FS.existsSync(Path.join(dir, 'zero.json'))) {
+        return dir;
       } 
+      dir = Path.join(dir, '..');
     } while (last !== dir);
     return null;
+  }
+
+  /**
+   * @param {string} module 
+   * @returns {string}
+   */
+  findPackageRootModule(module) {
+    return this.findPackageRoot(require.resolve(module));
   }
 
   /**
@@ -62,7 +71,7 @@ module.exports = class Scaffold {
    * @returns {?T_ZeroConfig}
    */
   getZeroJson(dir) {
-    path = Path.join(Path.dirname(this.findPackage(dir)), 'zero.json');
+    path = Path.join(this.findPackageRoot(dir), 'zero.json');
     if (!FS.existsSync(path)) return null;
     return require(path);
   }
@@ -76,18 +85,19 @@ module.exports = class Scaffold {
   }
 
   /**
-   * @param {string} path 
+   * @param {string} root 
    */
-  scaffold(path) {
-    path = Path.join(Path.dirname(path), 'zero.json');
-    if (!FS.existsSync(path)) return;
+  scaffold(root) {
+    const path = Path.join(root, 'zero.json');
+    if (!root || !FS.existsSync(path)) return;
 
+    /** @type {T_ZeroConfig} */
     const config = require(path);
 
     if (config.scaffold) {
-      config.scaffold.path = path;
+      config.scaffold.root = root;
       this.scaffoldInline({
-        path,
+        root,
         main: config.scaffold,
       }, config.scaffold);
 
@@ -104,46 +114,43 @@ module.exports = class Scaffold {
   scaffoldInline(config, scaffold) {
     if (Array.isArray(scaffold.modules)) {
       for (const module of scaffold.modules) {
-        const modPath = Path.dirname(this.findPackage(require.resolve(module)));
-        const modConfigPath = Path.join(modPath, 'zero.json');
-        if (!FS.existsSync(modConfigPath)) {
+        const modConfig = this.getZeroJsonModule(module);
+
+        if (!modConfig) {
           console.error(`[Scaffold-ERROR] The module "${modPath}" has no zero.json. Please delete the module from include list "modules".`);
           continue;
         }
 
-        const modConfig = require(modConfigPath);
         if (modConfig.scaffold) {
-          modConfig.scaffold.path = modPath;
+          modConfig.scaffold.root = this.findPackageRootModule(module);
           this.scaffoldInline(config, modConfig.scaffold);
         }
       }
     }
-    if (scaffold.files) {
-      const targetRoot = Path.dirname(config.path);
-      for (const files of scaffold.files) {
-        const modname = Path.basename(scaffold.path);
-        const list = Glob.sync(files.pattern, {
-          cwd: Path.join(scaffold.path, files.namespace ?? ''),
-        });
-        for (const item of list) {
-          const parse = Path.parse(item);
-          parse.file = item;
-          parse.module = this.toCamelCase(modname);
-          parse.type = files.type;
 
-          if (!config.main.paths[parse.type]) continue;
+    for (const files of (scaffold?.files || [])) {
+      const modname = Path.basename(scaffold.root);
+      const list = Glob.sync(files.pattern, {
+        cwd: Path.join(scaffold.root, files.namespace ?? ''),
+      });
+      for (const item of list) {
+        const parse = Path.parse(item);
+        parse.file = item;
+        parse.module = this.toCamelCase(modname);
+        parse.type = files.type;
 
-          const target = Path.normalize(this.template(config.main.paths[parse.type].path, parse));
+        if (!config.main.paths[parse.type]) continue;
 
-          if ((!config.main.paths[parse.type].mode || config.main.paths[parse.type].mode === 'once') && FS.existsSync(Path.join(targetRoot, target))) continue;
+        const target = Path.normalize(this.template(config.main.paths[parse.type].path, parse));
 
-          const from = Path.join(files.namespace ?? '', item);
+        if ((!config.main.paths[parse.type].mode || config.main.paths[parse.type].mode === 'once') && FS.existsSync(Path.join(config.root, target))) continue;
 
-          this.prepareDirectory(targetRoot, Path.dirname(target));
-          process.stdout.write(`[Scaffold-${parse.module}-${parse.type}] ${from} => ${target}: `);
-          FS.copyFileSync(Path.join(scaffold.path, from), Path.join(targetRoot, target));
-          console.log('OK');
-        }
+        const from = Path.join(files.namespace ?? '', item);
+
+        this.prepareDirectory(config.root, Path.dirname(target));
+        process.stdout.write(`[Scaffold-${parse.module}-${parse.type}] ${from} => ${target}: `);
+        FS.copyFileSync(Path.join(scaffold.path, from), Path.join(config.root, target));
+        console.log('OK');
       }
     }
   }
@@ -170,11 +177,9 @@ module.exports = class Scaffold {
 
   /**
    * @param {T_ScaffoldAction[]} actions 
-   * @property {string} path
+   * @property {string} root
    */
-  doActions(actions, path) {
-    const root = Path.dirname(path);
-    
+  doActions(actions, root) {
     for (const action of actions) {
       switch (action.type) {
         case 'append':
