@@ -3,6 +3,12 @@ const FS = require('fs');
 const Glob = require('glob');
 
 /**
+ * @typedef {Object} T_ZeroConfig
+ * @property {string[]} [includes]
+ * @property {T_ScaffoldConfig} [scaffold]
+ */
+
+/**
  * @typedef {Object} T_ScaffoldConfig
  * @property {string} path
  * @property {T_ScaffoldPackage} main
@@ -53,7 +59,7 @@ module.exports = class Scaffold {
 
   /**
    * @param {string} dir 
-   * @returns {?T_ScaffoldPackage}
+   * @returns {?T_ZeroConfig}
    */
   getZeroJson(dir) {
     path = Path.join(Path.dirname(this.findPackage(dir)), 'zero.json');
@@ -63,7 +69,7 @@ module.exports = class Scaffold {
 
   /**
    * @param {string} module 
-   * @returns {?T_ScaffoldPackage}
+   * @returns {?T_ZeroConfig}
    */
   getZeroJsonModule(module) {
     return this.getZeroJson(require.resolve(module));
