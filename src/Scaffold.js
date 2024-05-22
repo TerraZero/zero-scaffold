@@ -52,6 +52,24 @@ module.exports = class Scaffold {
   }
 
   /**
+   * @param {string} dir 
+   * @returns {?T_ScaffoldPackage}
+   */
+  getZeroJson(dir) {
+    path = Path.join(Path.dirname(this.findPackage(dir)), 'zero.json');
+    if (!FS.existsSync(path)) return null;
+    return require(path);
+  }
+
+  /**
+   * @param {string} module 
+   * @returns {?T_ScaffoldPackage}
+   */
+  getZeroJsonModule(module) {
+    return this.getZeroJson(require.resolve(module));
+  }
+
+  /**
    * @param {string} path 
    */
   scaffold(path) {
