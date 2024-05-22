@@ -102,7 +102,7 @@ module.exports = class Scaffold {
       }, config.scaffold);
 
       if (config.scaffold.after) {
-        this.doActions(config.scaffold.after, path);
+        this.doActions(config.scaffold.after, root);
       }
     }
   }
