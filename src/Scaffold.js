@@ -150,7 +150,8 @@ module.exports = class Scaffold {
 
         this.prepareDirectory(config.root, Path.dirname(target));
         process.stdout.write(`[Scaffold-${parse.module}-${parse.type}] ${from} => ${target}: `);
-        FS.copyFileSync(Path.join(scaffold.path, from), Path.join(config.root, target));
+        
+        FS.copyFileSync(Path.join(scaffold.root, from), Path.join(config.root, target));
         if (config.main.paths[parse.type].append) {
           FS.appendFileSync(Path.join(config.root, target), this.template(config.main.paths[parse.type].append.join("\n"), parse));
         }
