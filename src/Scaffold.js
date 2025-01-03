@@ -117,7 +117,7 @@ module.exports = class Scaffold {
         const modConfig = this.getZeroJsonModule(module);
 
         if (!modConfig) {
-          console.error(`[Scaffold-ERROR] The module "${modPath}" has no zero.json. Please delete the module from include list "modules".`);
+          console.error(`[Scaffold-ERROR] The module "${module}" has no zero.json. Please delete the module from include list "modules".`);
           continue;
         }
 
@@ -151,8 +151,11 @@ module.exports = class Scaffold {
         this.prepareDirectory(config.root, Path.dirname(target));
         process.stdout.write(`[Scaffold-${parse.module}-${parse.type}] ${from} => ${target}: `);
         
+        if (Array.isArray(config.main.paths[parse.type].prepend)) {
+          FS.appendFileSync(Path.join(config.root, target), this.template(config.main.paths[parse.type].prepend.join("\n"), parse));
+        }
         FS.copyFileSync(Path.join(scaffold.root, from), Path.join(config.root, target));
-        if (config.main.paths[parse.type].append) {
+        if (Array.isArray(config.main.paths[parse.type].append)) {
           FS.appendFileSync(Path.join(config.root, target), this.template(config.main.paths[parse.type].append.join("\n"), parse));
         }
         console.log('OK');
