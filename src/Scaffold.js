@@ -40,9 +40,21 @@ const Registry = require('./Registry');
 /**
  * @typedef {Object} T_ScaffoldAction
  * @property {string} type
+ * @property {string} file
+ * @property {string} namepattern
+ * @property {boolean} ucfirst
+ * @property {string} include
  */
 
 module.exports = class Scaffold {
+
+  /**
+   * @param {string} string 
+   * @returns {string}
+   */
+  static ucFirst(string) {
+    return string.substring(0, 1).toUpperCase() + string.substring(1);
+  }
 
   constructor() {
     this.registry = null;
@@ -128,8 +140,10 @@ module.exports = class Scaffold {
       FS.writeFileSync(registry.path, JSON.stringify(registry.value, null, 2));
 
       if (config.scaffold.after) {
-        this.doActions(config.scaffold.after, root);
+        this.doActions(config.scaffold.after, root, registry);
       }
+
+      FS.writeFileSync(registry.path, JSON.stringify(registry.value, null, 2));
     }
   }
 
@@ -219,9 +233,10 @@ module.exports = class Scaffold {
 
   /**
    * @param {T_ScaffoldAction[]} actions 
-   * @property {string} root
+   * @param {string} root
+   * @param {Registry} registry
    */
-  doActions(actions, root) {
+  doActions(actions, root, registry) {
     for (const action of actions) {
       switch (action.type) {
         case 'append':
@@ -241,6 +256,49 @@ module.exports = class Scaffold {
           }
           this.prepareDirectory(root, Path.dirname(action.result));
           FS.writeFileSync(Path.join(root, action.result), parts.join(action.separator ?? ''));
+          console.log('  - finish');
+          console.log();
+          break;
+        case 'registry':
+          console.log(`[Scaffold-after-registry] ${action.include} -> ${action.file}: `);
+          const lines = [];
+          
+          const items = [];
+          const pattern = new RegExp(action.namepattern);
+          for (const item of registry.all(action.include)) {
+            process.stdout.write(`  - item ${item.id}`);
+            const result = pattern.exec(item.id);
+            if (result && result[1]) {
+              let name = result[1];
+              if (action.ucfirst) {
+                name = Scaffold.ucFirst(name);
+              }
+              items.push({
+                item,
+                name,
+                include: item.file.substring(0, item.file.length - 3).replace(/\\/g, '/'),
+              });
+              console.log(' -> ' + name);
+            } else {
+              console.log(' -> FAILED');
+            }
+          }
+
+          for (const item of items) {
+            lines.push(`import ${item.name} from "~/${item.include}";`);
+          }
+          lines.push('');
+          lines.push('export default {');
+          lines.push('');
+          for (const item of items) {
+            lines.push(`  ${item.name},`);
+          }
+          lines.push('');
+          lines.push('}');
+
+          this.prepareDirectory(root, Path.dirname(action.file));
+          FS.writeFileSync(Path.join(root, action.file), lines.join('\n'));
+          
           console.log('  - finish');
           console.log();
           break;
