@@ -55,8 +55,12 @@ module.exports = class Scaffold {
   getRegistry(dir) {
     if (this.registry === null) {
       const root = this.findPackageRoot(dir);
-      const registry = FS.readFileSync(Path.join(root, 'zero.registry.json'));
-      this.registry = new Registry(JSON.parse(registry));
+      const path = Path.join(root, 'zero.registry.json');
+      let registry = '{}';
+      try {
+        registry = FS.readFileSync(path);
+      } catch (e) {}
+      this.registry = new Registry(path, JSON.parse(registry));
     }
     return this.registry;
   }
@@ -114,14 +118,14 @@ module.exports = class Scaffold {
     const config = require(path);
 
     if (config.scaffold) {
-      const registry = {};
+      const registry = this.getRegistry(root);
       config.scaffold.root = root;
       this.scaffoldInline({
         root,
         main: config.scaffold,
       }, config.scaffold, registry);
 
-      FS.writeFileSync(Path.join(root, 'zero.registry.json'), JSON.stringify(registry, null, 2));
+      registry.save();
 
       if (config.scaffold.after) {
         this.doActions(config.scaffold.after, root);
@@ -132,7 +136,7 @@ module.exports = class Scaffold {
   /**
    * @param {T_ScaffoldConfig} config 
    * @param {T_ScaffoldPackage} scaffold
-   * @param {Object} registry
+   * @param {Registry} registry
    */
   scaffoldInline(config, scaffold, registry) {
     if (Array.isArray(scaffold.modules)) {
@@ -183,9 +187,7 @@ module.exports = class Scaffold {
           FS.appendFileSync(Path.join(config.root, target), this.template(config.main.paths[parse.type].append.join("\n"), parse));
         }
 
-        registry[parse.type] ??= [];
-        registry[parse.type].push({
-          id: parse.name,
+        registry.add(parse.type, parse.name, {
           file: target,
           module: parse.module_name,
         });
