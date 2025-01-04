@@ -125,7 +125,7 @@ module.exports = class Scaffold {
         main: config.scaffold,
       }, config.scaffold, registry);
 
-      registry.save();
+      FS.writeFileSync(registry.path, JSON.stringify(registry.value, null, 2));
 
       if (config.scaffold.after) {
         this.doActions(config.scaffold.after, root);
@@ -150,12 +150,12 @@ module.exports = class Scaffold {
 
         if (modConfig.scaffold) {
           modConfig.scaffold.root = this.findPackageRootModule(module);
-          this.scaffoldInline(config, modConfig.scaffold, registry);
+          this.scaffoldInline(config, modConfig.scaffold ?? {}, registry);
         }
       }
     }
 
-    for (const files of (scaffold?.files || [])) {
+    for (const files of (scaffold.files ?? [])) {
       const modname = Path.basename(scaffold.root);
       const list = Glob.sync(files.pattern, {
         cwd: Path.join(scaffold.root, files.namespace ?? ''),

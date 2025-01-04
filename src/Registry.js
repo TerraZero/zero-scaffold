@@ -1,5 +1,3 @@
-const FS = require('fs');
-
 module.exports = class Registry {
 
   /**
@@ -20,7 +18,7 @@ module.exports = class Registry {
   add(type, id, values = {}) {
     values.id = id;
     values.type = type;
-    this.value[type] ??= [];
+    this.value[type] = this.value[type] || [];
     let index = -1;
     if ((index = this.getIndex(type, id)) === -1) {
       this.value[type].push(values);
@@ -37,7 +35,8 @@ module.exports = class Registry {
    * @returns {Object}
    */
   get(type, id, prop = 'id') {
-    return this.value[type]?.find(v => v[prop] === id) ?? null;
+    if (!Array.isArray(this.value[type])) return null;
+    return this.value[type].find(v => v[prop] === id) || null;
   }
 
   /**
@@ -47,7 +46,8 @@ module.exports = class Registry {
    * @returns {int}
    */
   getIndex(type, id, prop = 'id') {
-    return this.value[type]?.findIndex(v => v[prop] === id) ?? -1;
+    if (!Array.isArray(this.value[type])) return -1;
+    return this.value[type].findIndex(v => v[prop] === id);
   }
 
   /**
@@ -56,15 +56,8 @@ module.exports = class Registry {
    * @returns {Object[]}
    */
   all(type, predicate) {
-    return this.value[type]?.filter(predicate) ?? [];
-  }
-
-  /**
-   * @returns {this}
-   */
-  save() {
-    FS.writeFileSync(this.path, JSON.stringify(this.value, null, 2));
-    return this;
+    if (!Array.isArray(this.value[type])) return [];
+    return this.value[type].filter(predicate) || [];
   }
 
 }
