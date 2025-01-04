@@ -56,6 +56,24 @@ module.exports = class Scaffold {
     return string.substring(0, 1).toUpperCase() + string.substring(1);
   }
 
+  static mergeDeep(target, ...sources) {
+    for (const source of sources) {
+      for (const key in source) {
+        const sourceValue = source[key];
+        const targetValue = target[key];
+  
+        if (Array.isArray(sourceValue)) {
+          target[key] = Array.isArray(targetValue) ? targetValue.concat(sourceValue) : [...sourceValue];
+        } else if (typeof sourceValue === 'object' && sourceValue !== null) {
+          target[key] = Scaffold.mergeDeep(targetValue || {}, sourceValue);
+        } else {
+          target[key] = sourceValue;
+        }
+      }
+    }
+    return target;
+  }
+
   constructor() {
     this.registry = null;
   }
@@ -128,6 +146,20 @@ module.exports = class Scaffold {
 
     /** @type {T_ZeroConfig} */
     const config = require(path);
+
+    if (config.extend) {
+      console.log(`[Scaffold-extend] ${config.extend}.`);
+      const files = Glob.sync(config.extend, {
+        cwd: root,
+      });
+
+      for (const file of files) {
+        process.stdout.write(`  - load ${file}`);
+        const extend = require(Path.join(root, file));
+        Scaffold.mergeDeep(config, extend);
+        console.log(' - LOADED');
+      }
+    }
 
     if (config.scaffold) {
       const registry = this.getRegistry(root);
