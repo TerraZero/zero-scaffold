@@ -137,16 +137,7 @@ module.exports = class Scaffold {
     return this.getZeroJson(require.resolve(module));
   }
 
-  /**
-   * @param {string} root 
-   */
-  scaffold(root) {
-    const path = Path.join(root, 'zero.json');
-    if (!root || !FS.existsSync(path)) return;
-
-    /** @type {T_ZeroConfig} */
-    const config = require(path);
-
+  loadConfigExtend(config, root) {
     if (config.extend) {
       console.log(`[Scaffold-extend] ${config.extend}.`);
       const files = Glob.sync(config.extend, {
@@ -160,10 +151,31 @@ module.exports = class Scaffold {
         console.log(' - LOADED');
       }
     }
+  }
+
+  /**
+   * @param {string} root 
+   */
+  scaffold(root) {
+    const path = Path.join(root, 'zero.json');
+    if (!root || !FS.existsSync(path)) return;
+
+    /** @type {T_ZeroConfig} */
+    const config = require(path);
+
+    this.loadConfigExtend(config, root);
 
     if (config.scaffold) {
       const registry = this.getRegistry(root);
       config.scaffold.root = root;
+
+      // load only configs to ensure complete config
+      this.scaffoldInline({
+        root,
+        main: config.scaffold,
+      }, config.scaffold, registry, 'zero-config');
+      this.loadConfigExtend(config, root);
+
       this.scaffoldInline({
         root,
         main: config.scaffold,
@@ -175,16 +187,36 @@ module.exports = class Scaffold {
         this.doActions(config.scaffold.after, root, registry);
       }
 
+      this.checkRegistry(registry, root);
+
       FS.writeFileSync(registry.path, JSON.stringify(registry.value, null, 2));
     }
+  }
+
+  /**
+   * @param {Registry} registry 
+   * @param {string} root
+   */
+  checkRegistry(registry, root) {
+    console.log('[Scaffold-registry] Check if files are existing...');
+    for (const type in registry.value) {
+      for (const file of registry.value[type]) {
+        if (!FS.existsSync(Path.join(root, file.file))) {
+          console.log('  - PRUNE: ' + file.file);
+          registry.remove(file.type, file.id);
+        }
+      }
+    }
+    console.log('[Scaffold-registry] Finish');
   }
 
   /**
    * @param {T_ScaffoldConfig} config 
    * @param {T_ScaffoldPackage} scaffold
    * @param {Registry} registry
+   * @param {string} onlytype
    */
-  scaffoldInline(config, scaffold, registry) {
+  scaffoldInline(config, scaffold, registry, onlytype = null) {
     if (Array.isArray(scaffold.modules)) {
       for (const module of scaffold.modules) {
         const modConfig = this.getZeroJsonModule(module);
@@ -196,12 +228,14 @@ module.exports = class Scaffold {
 
         if (modConfig.scaffold) {
           modConfig.scaffold.root = this.findPackageRootModule(module);
-          this.scaffoldInline(config, modConfig.scaffold ?? {}, registry);
+          this.scaffoldInline(config, modConfig.scaffold ?? {}, registry, onlytype);
         }
       }
     }
 
     for (const files of (scaffold.files ?? [])) {
+      if (onlytype !== null && files.type !== onlytype) continue;
+
       const modname = Path.basename(scaffold.root);
       const list = Glob.sync(files.pattern, {
         cwd: Path.join(scaffold.root, files.namespace ?? ''),
