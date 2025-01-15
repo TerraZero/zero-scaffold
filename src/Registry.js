@@ -30,6 +30,18 @@ module.exports = class Registry {
 
   /**
    * @param {string} type 
+   * @param {Object<string, *>} items 
+   * @returns {this}
+   */
+  setType(type, items) {
+    for (const id in items) {
+      this.add(type, id, items[id]);
+    }
+    return this;
+  }
+
+  /**
+   * @param {string} type 
    * @param {*} id 
    * @param {string} prop 
    * @returns {Object}
@@ -43,10 +55,14 @@ module.exports = class Registry {
    * @param {*} id 
    * @returns {this}
    */
-  remove(type, id) {
-    const index = this.getIndex(type, id);
-    if (index !== -1) {
-      this.value[type].splice(index, 1);
+  remove(type, id = null) {
+    if (id === null) {
+      delete this.value[type];
+    } else {
+      const index = this.getIndex(type, id);
+      if (index !== -1) {
+        this.value[type].splice(index, 1);
+      }
     }
     return this;
   }

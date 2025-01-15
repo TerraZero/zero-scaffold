@@ -95,6 +95,13 @@ module.exports = class Scaffold {
     return this.registry;
   }
 
+  saveRegistry() {
+    if (this.registry !== null) {
+      FS.writeFileSync(this.registry.path, JSON.stringify(this.registry.value, null, 2));
+    }
+    return this;
+  }
+
   /**
    * @param {string} dir 
    * @returns {string}
@@ -181,7 +188,7 @@ module.exports = class Scaffold {
         main: config.scaffold,
       }, config.scaffold, registry);
 
-      FS.writeFileSync(registry.path, JSON.stringify(registry.value, null, 2));
+      this.saveRegistry();
 
       if (config.scaffold.after) {
         this.doActions(config.scaffold.after, root, registry);
@@ -189,7 +196,7 @@ module.exports = class Scaffold {
 
       this.checkRegistry(registry, root);
 
-      FS.writeFileSync(registry.path, JSON.stringify(registry.value, null, 2));
+      this.saveRegistry();
     }
   }
 
