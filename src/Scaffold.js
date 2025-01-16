@@ -144,7 +144,13 @@ module.exports = class Scaffold {
     return this.getZeroJson(require.resolve(module));
   }
 
-  loadConfigExtend(config, root) {
+  /**
+   * @param {string} path 
+   * @param {string} root 
+   * @returns {T_ZeroConfig}
+   */
+  loadConfigExtend(path, root) {
+    const config = JSON.parse(JSON.stringify(require(path)));
     if (config.extend) {
       console.log(`[Scaffold-extend] ${config.extend}.`);
       const files = Glob.sync(config.extend, {
@@ -158,6 +164,7 @@ module.exports = class Scaffold {
         console.log(' - LOADED');
       }
     }
+    return config;
   }
 
   /**
@@ -167,10 +174,7 @@ module.exports = class Scaffold {
     const path = Path.join(root, 'zero.json');
     if (!root || !FS.existsSync(path)) return;
 
-    /** @type {T_ZeroConfig} */
-    const config = require(path);
-
-    this.loadConfigExtend(config, root);
+    let config = this.loadConfigExtend(path, root);
 
     if (config.scaffold) {
       const registry = this.getRegistry(root);
@@ -181,7 +185,8 @@ module.exports = class Scaffold {
         root,
         main: config.scaffold,
       }, config.scaffold, registry, 'zero-config');
-      this.loadConfigExtend(config, root);
+      // reload config
+      config = this.loadConfigExtend(path, root);
 
       this.scaffoldInline({
         root,
@@ -208,6 +213,10 @@ module.exports = class Scaffold {
     console.log('[Scaffold-registry] Check if files are existing...');
     for (const type in registry.value) {
       for (const file of registry.value[type]) {
+        if (!file.file) {
+          console.log('  - IGNORE: ' + file.name);
+          continue;
+        }
         if (!FS.existsSync(Path.join(root, file.file))) {
           console.log('  - PRUNE: ' + file.file);
           registry.remove(file.type, file.id);
