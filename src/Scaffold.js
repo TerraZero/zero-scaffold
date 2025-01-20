@@ -42,7 +42,6 @@ const Registry = require('./Registry');
  * @property {string} type
  * @property {string} file
  * @property {string} namepattern
- * @property {boolean} ucfirst
  * @property {string} include
  */
 
@@ -347,33 +346,25 @@ module.exports = class Scaffold {
           
           const items = [];
           const pattern = new RegExp(action.namepattern);
+          console.log('  - PATTERN: ' + action.namepattern);
           for (const item of registry.all(action.include)) {
             process.stdout.write(`  - item ${item.id}`);
             const result = pattern.exec(item.id);
-            if (result && result[1]) {
-              let name = result[1];
-              if (action.ucfirst) {
-                name = Scaffold.ucFirst(name);
-              }
+            if (result) {
               items.push({
                 item,
-                name,
                 include: item.file.substring(0, item.file.length - 3).replace(/\\/g, '/'),
               });
-              console.log(' -> ' + name);
+              console.log(' -> ' + item.id);
             } else {
-              console.log(' -> FAILED');
+              console.log(' -> NO MATCH');
             }
           }
 
-          for (const item of items) {
-            lines.push(`import ${item.name} from "~/${item.include}";`);
-          }
-          lines.push('');
           lines.push('export default {');
           lines.push('');
           for (const item of items) {
-            lines.push(`  ${item.name},`);
+            lines.push(`  '${item.item.name}': require('~/${item.include}'),`);
           }
           lines.push('');
           lines.push('}');
