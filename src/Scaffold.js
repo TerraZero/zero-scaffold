@@ -2,6 +2,8 @@ const Path = require('path');
 const FS = require('fs');
 const Glob = require('glob');
 
+const JSONUtil = require('zero-util/src/JSONUtil');
+
 const Registry = require('./Registry');
 
 /**
@@ -41,7 +43,7 @@ const Registry = require('./Registry');
  * @typedef {Object} T_ScaffoldAction
  * @property {string} type
  * @property {string} file
- * @property {string} namepattern
+ * @property {string[]} filter
  * @property {string} include
  */
 
@@ -345,12 +347,18 @@ module.exports = class Scaffold {
           const lines = [];
           
           const items = [];
-          const pattern = new RegExp(action.namepattern);
-          console.log('  - PATTERN: ' + action.namepattern);
           for (const item of registry.all(action.include)) {
+            let valid = true;
             process.stdout.write(`  - item ${item.id}`);
-            const result = pattern.exec(item.id);
-            if (result) {
+            if (Array.isArray(action.filter)) {
+              for (const filter of action.filter) {
+                if (!JSONUtil.getDeepPath(item, filter, false)) {
+                  valid = false;
+                  break;
+                }
+              }
+            }
+            if (valid) {
               items.push({
                 item,
                 include: item.file.substring(0, item.file.length - 3).replace(/\\/g, '/'),
