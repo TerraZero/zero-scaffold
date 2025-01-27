@@ -268,7 +268,7 @@ module.exports = class Scaffold {
 
         const target = Path.normalize(this.template(config.main.paths[parse.type].path, parse));
 
-        if ((!config.main.paths[parse.type].mode || config.main.paths[parse.type].mode === 'once') && FS.existsSync(Path.join(config.root, target))) continue;
+        if (config.main.paths[parse.type]?.mode === 'once' && FS.existsSync(Path.join(config.root, target))) continue;
 
         const from = Path.join(files.namespace ?? '', item);
 
