@@ -207,6 +207,20 @@ module.exports = class Scaffold {
   }
 
   /**
+   * @param {string} root 
+   * @param {(ctx: { action: T_ScaffoldAction, root: string, registry: Registry }) => boolean} actionFilter 
+   */
+  scaffoldActions(root, actionFilter = null) {
+    const path = Path.join(root, 'zero.json');
+    if (!root || !FS.existsSync(path)) return;
+
+    let config = this.loadConfigExtend(path, root);
+    if (config.scaffold.after) {
+      this.doActions(config.scaffold.after, root, this.getRegistry(root), actionFilter);
+    }
+  }
+
+  /**
    * @param {Registry} registry 
    * @param {string} root
    */
@@ -319,8 +333,11 @@ module.exports = class Scaffold {
    * @param {string} root
    * @param {Registry} registry
    */
-  doActions(actions, root, registry) {
+  doActions(actions, root, registry, actionFilter = null) {
     for (const action of actions) {
+      if (typeof actionFilter === 'function') {
+        if (!actionFilter({ action, root, registry })) continue;
+      }
       switch (action.type) {
         case 'append':
           console.log(`[Scaffold-after-append] ${action.result}: `);
