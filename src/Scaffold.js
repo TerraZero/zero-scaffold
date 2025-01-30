@@ -97,6 +97,7 @@ module.exports = class Scaffold {
   }
 
   saveRegistry() {
+    console.log('[Scaffold-registry] Save registry ...');
     if (this.registry !== null) {
       FS.writeFileSync(this.registry.path, JSON.stringify(this.registry.value, null, 2));
     }
