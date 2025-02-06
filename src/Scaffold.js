@@ -3,6 +3,7 @@ const FS = require('fs');
 const Glob = require('glob');
 
 const JSONUtil = require('zero-util/src/JSONUtil');
+const StringUtil = require('zero-util/src/StringUtil');
 
 const Registry = require('./Registry');
 
@@ -45,17 +46,19 @@ const Registry = require('./Registry');
  * @property {string} file
  * @property {string[]} filter
  * @property {string} include
+ * @property {string} pattern
+ * @property {string} cwd
+ */
+
+/**
+ * @typedef {Object} T_ScaffoldActionFileList
+ * @property {string} type
+ * @property {string} file
+ * @property {string} pattern
+ * @property {string} cwd
  */
 
 module.exports = class Scaffold {
-
-  /**
-   * @param {string} string 
-   * @returns {string}
-   */
-  static ucFirst(string) {
-    return string.substring(0, 1).toUpperCase() + string.substring(1);
-  }
 
   static mergeDeep(target, ...sources) {
     for (const source of sources) {
@@ -73,6 +76,18 @@ module.exports = class Scaffold {
       }
     }
     return target;
+  }
+
+  static addGlobalJSONMethods() {
+    if (this._add_global_json_methods === undefined) {
+      this._add_global_json_methods = true;
+    } else {
+      return;
+    }
+
+    JSONUtil.addGlobalPathMethod('removeExtension', (path) => {
+      return path.substring(0, path.length - Path.extname(path).length);
+    });
   }
 
   constructor() {
@@ -166,6 +181,8 @@ module.exports = class Scaffold {
         console.log(' - LOADED');
       }
     }
+    console.log('  - finish');
+    console.log();
     return config;
   }
 
@@ -367,7 +384,6 @@ module.exports = class Scaffold {
           const items = [];
           for (const item of registry.all(action.include)) {
             let valid = true;
-            process.stdout.write(`  - item ${item.id}`);
             if (Array.isArray(action.filter)) {
               for (const filter of action.filter) {
                 if (!JSONUtil.getDeepPath(item, filter, false)) {
@@ -381,9 +397,7 @@ module.exports = class Scaffold {
                 item,
                 include: item.file.substring(0, item.file.length - 3).replace(/\\/g, '/'),
               });
-              console.log(' -> ' + item.id);
-            } else {
-              console.log(' -> NO MATCH');
+              console.log(`  - item ${item.id}`);
             }
           }
 
@@ -401,8 +415,45 @@ module.exports = class Scaffold {
           console.log('  - finish');
           console.log();
           break;
+        case 'filelist':
+          this.doActionFileList(root, action);
+          break;
       }
     }
+  }
+
+  /**
+   * @param {string} root
+   * @param {T_ScaffoldActionFileList} action 
+   */
+  doActionFileList(root, action) {
+    console.log(`[Scaffold-after-filelist] ${action.pattern} -> ${action.file}: `);
+    const files = Glob.sync(action.pattern, {
+      cwd: Path.join(root, action.cwd),
+    });
+
+    const lines = [];
+    lines.push('module.exports = {');
+    lines.push('');
+    for (let file of files) {
+      let value = file;
+      file = file.replace('\\', '/');
+      if (action.pipe) {
+        const jq = new JSONUtil({
+          data: { file },
+          methods: StringUtil.methods(),
+        });
+        value = jq.execute(action.pipe).getResultValue();
+      }
+      lines.push(`  '${file}': '${value}',`);
+      console.log(`  - ${file} => ${value}`);
+    }
+    lines.push('');
+    lines.push('}');
+
+    FS.writeFileSync(Path.join(root, action.file), lines.join('\n'));
+    console.log('  - finish');
+    console.log();
   }
 
 }
